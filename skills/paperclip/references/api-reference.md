@@ -1535,7 +1535,8 @@ first, then send the returned `latestRevisionId` as `baseRevisionId`:
   `documentId`, and `lockedAt` (does **not** include `details.currentRevisionId`).
 
 Revision conflicts (stale/missing `baseRevisionId`) are recoverable by fetching the
-current revision and retrying with `baseRevisionId: details.currentRevisionId`.
+current document, reading its body, and reconciling any intervening edits before
+retrying with its `latestRevisionId` as `baseRevisionId`.
 A locked document conflict runs before revision checks: it returns `{ key, documentId, lockedAt }` without revision info and cannot be bypassed by sending a revision ID. The document must be unlocked before updating under that key.
 
 For an agent actor, the route passes `lockedDocumentStrategy: "create_new_document"`,

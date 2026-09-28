@@ -190,18 +190,18 @@ The skill/reference inventory and eval cases are the only normative behavior sou
 | skill:skills/paperclip/references/api-reference.md:agents:1385 | optional_agent_tool | skills/paperclip/references/api-reference.md:1385 |
 | skill:skills/paperclip/references/api-reference.md:issues-tasks:1406 | optional_agent_tool | skills/paperclip/references/api-reference.md:1406 |
 | skill:skills/paperclip/references/api-reference.md:issue-documents:1446 | always_agent_tool | skills/paperclip/references/api-reference.md:1446 |
-| skill:skills/paperclip/references/api-reference.md:write:1451 | optional_agent_tool | skills/paperclip/references/api-reference.md:1451 |
-| skill:skills/paperclip/references/api-reference.md:key-rules:1490 | optional_agent_tool | skills/paperclip/references/api-reference.md:1490 |
-| skill:skills/paperclip/references/api-reference.md:reserved-system-keys-accepted-on-write-hidden-from-the-list:1502 | optional_agent_tool | skills/paperclip/references/api-reference.md:1502 |
-| skill:skills/paperclip/references/api-reference.md:update:1519 | optional_agent_tool | skills/paperclip/references/api-reference.md:1519 |
-| skill:skills/paperclip/references/api-reference.md:read-back-before-you-report-the-write:1537 | optional_agent_tool | skills/paperclip/references/api-reference.md:1537 |
-| skill:skills/paperclip/references/api-reference.md:companies-projects-goals:1566 | optional_agent_tool | skills/paperclip/references/api-reference.md:1566 |
-| skill:skills/paperclip/references/api-reference.md:routines:1590 | optional_agent_tool | skills/paperclip/references/api-reference.md:1590 |
-| skill:skills/paperclip/references/api-reference.md:approvals-costs-activity-dashboard:1606 | optional_agent_tool | skills/paperclip/references/api-reference.md:1606 |
-| skill:skills/paperclip/references/api-reference.md:secrets:1628 | optional_agent_tool | skills/paperclip/references/api-reference.md:1628 |
-| skill:skills/paperclip/references/api-reference.md:agent-secret-proposals:1641 | optional_agent_tool | skills/paperclip/references/api-reference.md:1641 |
-| skill:skills/paperclip/references/api-reference.md:agent-secret-access:1741 | optional_agent_tool | skills/paperclip/references/api-reference.md:1741 |
-| skill:skills/paperclip/references/api-reference.md:common-mistakes:1781 | optional_agent_tool | skills/paperclip/references/api-reference.md:1781 |
+| skill:skills/paperclip/references/api-reference.md:write:1455 | optional_agent_tool | skills/paperclip/references/api-reference.md:1455 |
+| skill:skills/paperclip/references/api-reference.md:key-rules:1496 | optional_agent_tool | skills/paperclip/references/api-reference.md:1496 |
+| skill:skills/paperclip/references/api-reference.md:reserved-system-keys-accepted-on-write-hidden-from-the-list:1508 | optional_agent_tool | skills/paperclip/references/api-reference.md:1508 |
+| skill:skills/paperclip/references/api-reference.md:update:1525 | optional_agent_tool | skills/paperclip/references/api-reference.md:1525 |
+| skill:skills/paperclip/references/api-reference.md:read-back-before-you-report-the-write:1545 | optional_agent_tool | skills/paperclip/references/api-reference.md:1545 |
+| skill:skills/paperclip/references/api-reference.md:companies-projects-goals:1574 | optional_agent_tool | skills/paperclip/references/api-reference.md:1574 |
+| skill:skills/paperclip/references/api-reference.md:routines:1598 | optional_agent_tool | skills/paperclip/references/api-reference.md:1598 |
+| skill:skills/paperclip/references/api-reference.md:approvals-costs-activity-dashboard:1614 | optional_agent_tool | skills/paperclip/references/api-reference.md:1614 |
+| skill:skills/paperclip/references/api-reference.md:secrets:1636 | optional_agent_tool | skills/paperclip/references/api-reference.md:1636 |
+| skill:skills/paperclip/references/api-reference.md:agent-secret-proposals:1649 | optional_agent_tool | skills/paperclip/references/api-reference.md:1649 |
+| skill:skills/paperclip/references/api-reference.md:agent-secret-access:1749 | optional_agent_tool | skills/paperclip/references/api-reference.md:1749 |
+| skill:skills/paperclip/references/api-reference.md:common-mistakes:1789 | optional_agent_tool | skills/paperclip/references/api-reference.md:1789 |
 
 ## Legacy MCP Alias Index
 
