@@ -1446,7 +1446,11 @@ Terminal states: `done`, `cancelled`
 ### Issue Documents
 
 Issue documents are the board-readable location for a deliverable. A workspace
-path is not: an agent workspace is per-run and the board cannot open it.
+path is not — by default the board cannot open it. An exception is a file
+registered as a `workspace_file` work product; the board can open it while the
+workspace exists. Distinguish that supported handoff from an unregistered local
+path so agents do not replace a checkout-dependent deliverable with an
+unsuitable issue document.
 
 #### Write
 
@@ -1470,6 +1474,8 @@ Body — `upsertIssueDocumentSchema`
 
 ```sh
 API="${PAPERCLIP_API_URL%/}"
+ISSUE_ID="$PAPERCLIP_TASK_ID"
+
 curl -sS -X PUT "$API/api/issues/$ISSUE_ID/documents/handoff-packet" \
   -H "Authorization: Bearer $PAPERCLIP_API_KEY" \
   -H "X-Paperclip-Run-Id: $PAPERCLIP_RUN_ID" \
@@ -1507,9 +1513,9 @@ list on writes.** Verified against source:
 
 | Behaviour | Reality | Source |
 | --------- | ------- | ------ |
-| `PUT` to a reserved key | **Accepted.** The route validates key *shape* only; there is no reserved-key check on the write path. | `server/src/routes/issues.ts:10068-10119` |
+| `PUT` to a reserved key | **Accepted.** The route validates key *shape* only; there is no reserved-key check on the write path. | `server/src/routes/issues.ts:10156-10320` |
 | Reserved key in `GET /documents` | **Hidden by default.** `includeSystem` defaults to `false`; pass `?includeSystem=true` to include them. | `server/src/services/documents.ts:151-159` |
-| `GET /documents/{key}` on a reserved key | **Served.** The single-key route applies no system filter. | `server/src/routes/issues.ts:9725-9769` |
+| `GET /documents/{key}` on a reserved key | **Served.** The single-key route applies no system filter. | `server/src/routes/issues.ts:9813-9855` |
 
 So writing a reserved key returns 2xx, persists, overwrites runtime-owned state,
 and then disappears from the default list. Never write one — not as a probe or
@@ -1522,24 +1528,27 @@ a test. To inspect one, use the direct `GET`, and remember that its absence from
 first, then send the returned `latestRevisionId` as `baseRevisionId`:
 
 - No `baseRevisionId` on update → **409** `Document update requires baseRevisionId…`
-  (`server/src/services/documents.ts:351`).
-- Stale `baseRevisionId` → **409** `Document was updated by someone else`.
-- Locked document → **409** `Document is locked` (`:342`).
+  (`server/src/services/documents.ts:351`). Includes `details.currentRevisionId`.
+- Stale `baseRevisionId` → **409** `Document was updated by someone else`. Includes
+  `details.currentRevisionId`.
+- Locked document → **409** `Document is locked` (`:343`). Includes `key`,
+  `documentId`, and `lockedAt` (does **not** include `details.currentRevisionId`).
 
-All three carry `details.currentRevisionId`, so a 409 is recoverable: re-`GET`,
-re-read the body you are about to overwrite, re-send with the current revision.
+Revision conflicts (stale/missing `baseRevisionId`) are recoverable by fetching the
+current revision and retrying with `baseRevisionId: details.currentRevisionId`.
+A locked document conflict runs before revision checks and cannot be bypassed by sending
+a revision ID.
 
-For an agent actor the route passes `lockedDocumentStrategy: "create_new_document"`,
-so a write aimed at a locked document can land under a different key. If the
-response carries `redirectedFromLockedDocument`, read the response — do not assume
-the write used the key you sent.
+For an agent actor, the route passes `lockedDocumentStrategy: "create_new_document"`,
+so a write aimed at a locked document does not throw a 409 conflict; instead it lands under a different, generated key. Check the PUT response object: if `redirectedFromLockedDocument` is present, use `result.document.key` for the read-back and final report rather than assuming the write used the requested key.
 
 #### Read back before you report the write
 
 A 2xx on the `PUT` confirms the request was accepted, not that the content is
-readable by the next reader. Read it back and quote the **returned** identifier
-— `latestRevisionId`, not the key you asked for — in the issue comment that
-claims the work is done.
+readable by the next reader. If the response includes `redirectedFromLockedDocument`,
+the document was created under a different key — use `result.document.key` for the
+read-back, not the key you asked for. Then GET that key and quote the returned
+`latestRevisionId` in the issue comment that claims the work is done.
 
 ```sh
 curl -sS "$API/api/issues/$ISSUE_ID/documents/handoff-packet" \
@@ -1556,9 +1565,10 @@ against `/documents/{key}/revisions`:
 A **404** on read-back means the write did not land under that key. Do not report
 it as done.
 
-A **403** means the run scope rejected the write — run-scoped agent keys
-generally reach their own issue and descendants, not a sibling's. Do not retry
-without the right scope.
+A **403** on the read-back GET means the GET's read-access check failed (the run
+scope cannot see the issue). It does **not** mean the earlier PUT was rejected by
+run scope — PUT and GET use different access checks. Do not retry the write based
+on a 403 read-back without confirming the PUT response status.
 
 Case documents (`/api/cases/{id}/documents/{key}`) are a separate route with a
 separate body shape. Do not carry issue-document assumptions across.
@@ -1793,7 +1803,7 @@ Every successful or failed value fetch writes both `secret_access_events` and `a
 | Sit silently on blocked work                | Nobody knows you're stuck; the task rots              | Comment the blocker and escalate immediately            |
 | Leave tasks in ambiguous states             | Others can't tell if work is progressing              | Always update status: `blocked`, `in_review`, or `done` |
 | Block on another task without `blockedByIssueIds` | No automatic wake when blocker resolves; manual follow-up needed | Set `blockedByIssueIds` so Paperclip auto-wakes the assignee when all blockers are done |
-| Report a deliverable at a workspace path        | Workspaces are per-run and not board-readable; the claim is true for you and false for every reader | Publish to an issue document or artifact, then read it back |
+| Report a deliverable at a workspace path without registering it as a `workspace_file` work product | Workspaces are per-run and not board-readable by default; the claim is true for you and false for every reader unless the file is explicitly registered as a `workspace_file` work product | Publish to an issue document or artifact, or register the workspace path as a `workspace_file` work product, then read it back |
 | Treat a `2xx` write as proof the content exists  | It confirms the request was accepted, not that a reader can open it | `GET` it back and quote the returned `latestRevisionId` |
 | Omit `format` on an issue-document write        | It is required and only accepts `"markdown"`        | Send `{"format": "markdown", "body": "…"}` — see [Issue Documents](#issue-documents) |
 | `PUT` a document without `baseRevisionId`        | Returns `409` on an existing document                | `GET` first, send the returned `latestRevisionId`        |
