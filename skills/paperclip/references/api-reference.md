@@ -1459,11 +1459,11 @@ PUT /api/issues/{issueId}/documents/{key}
 ```
 
 Body — `upsertIssueDocumentSchema`
-(`packages/shared/src/validators/issue.ts:2074`):
+(`packages/shared/src/validators/issue.ts:2123`):
 
 | Field            | Required            | Type / rule                                                                   |
 | ---------------- | ------------------- | ----------------------------------------------------------------------------- |
-| `format`         | **yes**            | enum; `"markdown"` is the only accepted value (`:2070`, `:2072`, `:2076`)      |
+| `format`         | **yes**            | enum; `"markdown"` is the only accepted value (`:2119`, `:2121`, `:2125`)      |
 | `body`           | **yes**            | string, max 524288 characters                                                 |
 | `title`          | no                 | string, trimmed, max 200                                                      |
 | `changeSummary`  | no                 | string, trimmed, max 500                                                      |
@@ -1474,7 +1474,7 @@ Body — `upsertIssueDocumentSchema`
 
 ```sh
 API="${PAPERCLIP_API_URL%/}"
-ISSUE_ID="$PAPERCLIP_TASK_ID"
+ISSUE_ID="${PAPERCLIP_TASK_ID:?...}"
 
 curl -sS -X PUT "$API/api/issues/$ISSUE_ID/documents/handoff-packet" \
   -H "Authorization: Bearer $PAPERCLIP_API_KEY" \
@@ -1496,7 +1496,7 @@ smooshed. Use `--data-binary @-` with a heredoc as above, or `jq -n --arg`.
 #### Key rules
 
 `:key` is validated by `issueDocumentKeySchema`
-(`packages/shared/src/validators/issue.ts:1116`): `/^[a-z0-9][a-z0-9_-]*$/`,
+(`packages/shared/src/validators/issue.ts:1127`): `/^[a-z0-9][a-z0-9_-]*$/`,
 length 1–64.
 
 - Must start with a lowercase letter or digit. `_` and `-` are allowed only
@@ -1513,7 +1513,7 @@ list on writes.** Verified against source:
 
 | Behaviour | Reality | Source |
 | --------- | ------- | ------ |
-| `PUT` to a reserved key | **Accepted.** The route validates key *shape* only; there is no reserved-key check on the write path. | `server/src/routes/issues.ts:10156-10320` |
+| `PUT` to a reserved key | **Accepted.** The route validates key *shape* only; there is no reserved-key check on the write path. | `server/src/routes/issues.ts:10155-10320` |
 | Reserved key in `GET /documents` | **Hidden by default.** `includeSystem` defaults to `false`; pass `?includeSystem=true` to include them. | `server/src/services/documents.ts:151-159` |
 | `GET /documents/{key}` on a reserved key | **Served.** The single-key route applies no system filter. | `server/src/routes/issues.ts:9813-9855` |
 
@@ -1536,21 +1536,20 @@ first, then send the returned `latestRevisionId` as `baseRevisionId`:
 
 Revision conflicts (stale/missing `baseRevisionId`) are recoverable by fetching the
 current revision and retrying with `baseRevisionId: details.currentRevisionId`.
-A locked document conflict runs before revision checks and cannot be bypassed by sending
-a revision ID.
+A locked document conflict runs before revision checks: it returns `{ key, documentId, lockedAt }` without revision info and cannot be bypassed by sending a revision ID. The document must be unlocked before updating under that key.
 
 For an agent actor, the route passes `lockedDocumentStrategy: "create_new_document"`,
-so a write aimed at a locked document does not throw a 409 conflict; instead it lands under a different, generated key. Check the PUT response object: if `redirectedFromLockedDocument` is present, use `result.document.key` for the read-back and final report rather than assuming the write used the requested key.
+so a write aimed at a locked document does not throw a 409 conflict; instead it creates a document under a generated key (e.g. `handoff-packet-2`). The PUT response returns the created document JSON directly (`doc`). Compare the returned `doc.key` in the PUT response JSON against the requested key: if they differ, the write landed under a fallback key due to a lock — use the returned `key` for the read-back GET and final report rather than assuming the write used the requested key.
 
 #### Read back before you report the write
 
 A 2xx on the `PUT` confirms the request was accepted, not that the content is
-readable by the next reader. If the response includes `redirectedFromLockedDocument`,
-the document was created under a different key — use `result.document.key` for the
-read-back, not the key you asked for. Then GET that key and quote the returned
-`latestRevisionId` in the issue comment that claims the work is done.
+readable under the requested key. Compare the `key` field in the `PUT` response JSON against the requested key: if they differ, the write was redirected to a fallback key due to a locked document. GET **that returned key** and compare its `body` to what you sent. Then quote the returned `latestRevisionId` in the issue comment that claims the work is done.
 
 ```sh
+API="${PAPERCLIP_API_URL%/}"
+ISSUE_ID="${PAPERCLIP_TASK_ID:?...}"
+
 curl -sS "$API/api/issues/$ISSUE_ID/documents/handoff-packet" \
   -H "Authorization: Bearer $PAPERCLIP_API_KEY" -w '\nHTTP=%{http_code}\n'
 ```
@@ -1565,10 +1564,8 @@ against `/documents/{key}/revisions`:
 A **404** on read-back means the write did not land under that key. Do not report
 it as done.
 
-A **403** on the read-back GET means the GET's read-access check failed (the run
-scope cannot see the issue). It does **not** mean the earlier PUT was rejected by
-run scope — PUT and GET use different access checks. Do not retry the write based
-on a 403 read-back without confirming the PUT response status.
+A **403** on the read-back GET means the GET's read-access check failed (`assertIssueReadAllowed`).
+It does **not** mean the earlier PUT was rejected by run scope — PUT and GET use different access checks (`assertAgentIssueMutationAllowed` / `assertDeliverableMutationAllowedByRunContext` on write vs `assertIssueReadAllowed` on read). Do not retry the write based on a 403 read-back without confirming the PUT response status.
 
 Case documents (`/api/cases/{id}/documents/{key}`) are a separate route with a
 separate body shape. Do not carry issue-document assumptions across.
